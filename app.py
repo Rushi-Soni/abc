@@ -106,7 +106,7 @@ class TurboTalkStyleTransfer:
             content_img_resized = tf.image.resize(content_img, [256, 256])
             
             # Apply style transfer
-            stylized_image = self.model(content_img _resized, style_img_resized)[0]
+            stylized_image = self.model(content_img_resized, style_img_resized)[0]
             
             # Resize back to original dimensions
             stylized_image = tf.image.resize(stylized_image, original_shape)
