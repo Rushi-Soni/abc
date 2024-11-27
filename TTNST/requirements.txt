@@ -2,6 +2,7 @@ streamlit
 tensorflow 
 tensorflow-hub 
 numpy 
-opencv-python-headless 
+opencv-python 
+requests 
 matplotlib 
-requests
+pillow
