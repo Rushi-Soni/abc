@@ -73,25 +73,32 @@ class TurboTalkStyleTransfer:
             st.warning("Please check your internet connection or model availability.")
 
     def load_image(self, img_path_or_url):
-        try:
-            if isinstance(img_path_or_url, str) and img_path_or_url.startswith('http'):
-                response = requests.get(img_path_or_url)
-                img_array = np.asarray(bytearray(response.content), dtype=np.uint8)
-                img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+    try:
+        if isinstance(img_path_or_url, str) and img_path_or_url.startswith('http'):
+            response = requests.get(img_path_or_url)
+            if response.status_code != 200:
+                st.error("Failed to load image from URL. Please check the link.")
+                return None, None
+            img_array = np.asarray(bytearray(response.content), dtype=np.uint8)
+            img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        else:
+            if isinstance(img_path_or_url, str):
+                img = cv2.imread(img_path_or_url)
             else:
-                if isinstance(img_path_or_url, str):
-                    img = cv2.imread(img_path_or_url)
-                else:
-                    img_array = np.frombuffer(img_path_or_url.read(), np.uint8)
-                    img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-            
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            original_shape = img.shape[:2]
-            img = img.astype(np.float32) / 255.0
-            return img[tf.newaxis, :], original_shape
-        except Exception as e:
-            st.error(f"Image Processing Error: {e}")
+                img_array = np.frombuffer(img_path_or_url.read(), np.uint8)
+                img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        
+        if img is None:
+            st.error("Failed to load image. Please check the file path or URL.")
             return None, None
+        
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        original_shape = img.shape[:2]
+        img = img.astype(np.float32) / 255.0
+        return img[tf.newaxis, :], original_shape
+    except Exception as e:
+        st.error(f"Image Processing Error: {e}")
+        return None, None
 
     def stylize_image(self, content_img, style_img, original_shape, intensity=1.0, enhance_details=False):
         try:
