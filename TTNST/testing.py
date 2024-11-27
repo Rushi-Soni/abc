@@ -4,6 +4,8 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
 import cv2
+import requests
+import matplotlib.pyplot as plt
 import tempfile
 import time
 
@@ -52,14 +54,45 @@ class NeuralStyleTransferApp:
             st.error(f"Error loading model: {model_err}")
             self.model = None
 
-    def load_image(self, img_path, max_dim=512):
-        """Load and preprocess the image."""
+    def download_image(self, url):
+        """Robust image download with proper headers and error handling"""
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
         try:
-            # Load the image
-            img = cv2.imread(img_path)
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+           
+            # Convert response content to numpy array
+            nparr = np.frombuffer(response.content, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+           
             if img is None:
-                st.error(f"File not found: {img_path}")
-                return None
+                raise ValueError("Failed to decode image")
+           
+            return img
+        except Exception as e:
+            st.error(f"Error downloading image from {url}: {e}")
+            return None
+
+    def load_image(self, img_path_or_url, max_dim=512):
+        """Enhanced image loading with robust error handling"""
+        try:
+            # Checking if the image is a URL
+            if img_path_or_url.startswith('http'):
+                img = self.download_image(img_path_or_url)
+            else:
+                # Local file path processing
+                if os.path.exists(img_path_or_url):
+                    img = cv2.imread(img_path_or_url)
+                else:
+                    # If file doesn't exist, try loading from the same directory
+                    local_path = os.path.join(os.path.dirname(__file__), img_path_or_url)
+                    if os.path.exists(local_path):
+                        img = cv2.imread(local_path)
+                    else:
+                        st.error(f"File not found: {img_path_or_url}")
+                        return None
             
             # Convert BGR to RGB
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -78,7 +111,7 @@ class NeuralStyleTransferApp:
             return None
 
     def stylize_image(self, content_img, style_img):
-        """Apply style transfer to the content image using the style image."""
+        """Enhanced style transfer with progress tracking and error handling"""
         try:
             progress_bar = st.progress(0)
             status_text = st.empty()
@@ -113,7 +146,7 @@ class NeuralStyleTransferApp:
             return None
 
     def save_uploaded_file(self, uploaded_file):
-        """Save uploaded file to a temporary location."""
+        """Save uploaded file to a temporary location"""
         try:
             with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
                 tmp_file.write(uploaded_file.read())
@@ -123,9 +156,9 @@ class NeuralStyleTransferApp:
             return None
 
     def add_advanced_css(self):
-        """Add custom CSS for styling the app."""
+        """Comprehensive CSS styling with advanced animations and effects"""
         st.markdown(""" 
-        <style >
+        <style>
         /* Vibrant Gradient Background */
         .stApp {
             background: linear-gradient(135deg, 
