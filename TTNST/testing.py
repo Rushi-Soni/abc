@@ -5,8 +5,12 @@ import tensorflow_hub as hub
 import numpy as np
 import cv2
 import requests
-import io
+import matplotlib.pyplot as plt
+import tempfile
+import time
+import base64
 from PIL import Image
+import io
 
 class TurboTalkStyleTransfer:
     def __init__(self):
@@ -73,7 +77,7 @@ class TurboTalkStyleTransfer:
             if isinstance(img_path_or_url, str) and img_path_or_url.startswith('http'):
                 response = requests.get(img_path_or_url)
                 if response.status_code != 200:
-                    st.error("Failed to load image from URL.")
+                    st.error("Failed to load image from URL. Please check the link.")
                     return None, None
                 img_array = np.asarray(bytearray(response.content), dtype=np.uint8)
                 img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
@@ -81,14 +85,10 @@ class TurboTalkStyleTransfer:
                 if isinstance(img_path_or_url, str):
                     img = cv2.imread(img_path_or_url)
                 else:
-                    img_path_or_url.seek(0)
                     img_array = np.frombuffer(img_path_or_url.read(), np.uint8)
                     img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
             
-            if img is None or img.size == 0:
-                st.error("Failed to load image. File might be corrupted.")
-                return None, None
-            
+            # Convert the image color from BGR to RGB
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             original_shape = img.shape[:2]
             img = img.astype(np.float32) / 255.0
@@ -103,14 +103,18 @@ class TurboTalkStyleTransfer:
             if enhance_details:
                 content_img = tf.image.adjust_contrast(content_img, 1.5)
             
+            # Process images for style transfer
             style_img_resized = tf.image.resize(style_img, [256, 256])
             content_img_resized = tf.image.resize(content_img, [256, 256])
             
+            # Apply style transfer
             stylized_image = self.model(content_img_resized, style_img_resized)[0]
             
+            # Resize back to original dimensions
             stylized_image = tf.image.resize(stylized_image, original_shape)
             content_img_original = tf.image.resize(content_img, original_shape)
             
+            # Apply intensity blending
             final_img = content_img_original[0] * (1 - intensity) + stylized_image * intensity
             final_img = tf.clip_by_value(final_img, 0.0, 1.0)
             final_img = tf.image.convert_image_dtype(final_img, tf.uint8)
