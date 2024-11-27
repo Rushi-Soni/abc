@@ -73,8 +73,8 @@ class TurboTalkStyleTransfer:
             st.warning("Please check your internet connection or model availability.")
 
     def load_image(self, img_path_or_url):
-    try:
-        if isinstance(img_path_or_url, str) and img_path_or_url.startswith('http'):
+        try:
+            if isinstance(img_path_or_url, str) and img_path_or_url.startswith('http'):
             response = requests.get(img_path_or_url)
             if response.status_code != 200:
                 st.error("Failed to load image from URL. Please check the link.")
