@@ -106,7 +106,7 @@ class TurboTalkStyleTransfer:
             content_img_resized = tf.image.resize(content_img, [256, 256])
             
             # Apply style transfer
-            stylized_image = self.model(content_img_resized, style _img_resized)[0]
+            stylized_image = self.model(content_img _resized, style_img_resized)[0]
             
             # Resize back to original dimensions
             stylized_image = tf.image.resize(stylized_image, original_shape)
@@ -233,7 +233,7 @@ class TurboTalkStyleTransfer:
                             processed_img = np.squeeze(stylized_img)
                             st.image(processed_img, caption=f"Stylized with {style_selection}", use_column_width=True)
                         
-                        buffered = io.BytesIO ```python
+                        buffered = io.BytesIO()
                         Image.fromarray(processed_img).save(buffered, format="PNG")
                         
                         st.download_button(
