@@ -3,6 +3,8 @@ import streamlit as st
 import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
+import cv2
+import requests
 import io
 from PIL import Image
 
@@ -15,6 +17,14 @@ class TurboTalkStyleTransfer:
     def _configure_environment(self):
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
         tf.get_logger().setLevel('ERROR')
+        
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        if gpus:
+            try:
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+            except RuntimeError as e:
+                st.error(f"GPU Configuration Error: {e}")
 
     def _load_style_resources(self):
         self.style_categories = {
@@ -56,21 +66,30 @@ class TurboTalkStyleTransfer:
         except Exception as model_err:
             st.error(f"Model Loading Failed: {model_err}")
             self.model = None
+            st.warning("Please check your internet connection or model availability.")
 
     def load_image(self, img_path_or_url):
         try:
-            pil_image = Image.open(img_path_or_url)
-            img = np.array(pil_image)
+            if isinstance(img_path_or_url, str) and img_path_or_url.startswith('http'):
+                response = requests.get(img_path_or_url)
+                if response.status_code != 200:
+                    st.error("Failed to load image from URL.")
+                    return None, None
+                img_array = np.asarray(bytearray(response.content), dtype=np.uint8)
+                img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+            else:
+                if isinstance(img_path_or_url, str):
+                    img = cv2.imread(img_path_or_url)
+                else:
+                    img_path_or_url.seek(0)
+                    img_array = np.frombuffer(img_path_or_url.read(), np.uint8)
+                    img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
             
             if img is None or img.size == 0:
                 st.error("Failed to load image. File might be corrupted.")
                 return None, None
             
-            if len(img.shape) == 2:  # Grayscale
-                img = np.stack((img,) * 3, axis=-1)
-            elif img.shape[2] == 4:  # RGBA
-                img = img[:,:,:3]
-            
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             original_shape = img.shape[:2]
             img = img.astype(np.float32) / 255.0
             return img[tf.newaxis, :], original_shape
@@ -102,14 +121,60 @@ class TurboTalkStyleTransfer:
             st.error(f"Style Transfer Error: {e}")
             return None
 
+    def add_advanced_styling(self):
+        st.markdown("""
+        <style>
+        .stApp {
+            background: linear-gradient(-45deg, 
+                #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient-bg 15s ease infinite;
+        }
+        @keyframes gradient-bg {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        h1, h2, h3 {
+            font-family: 'Montserrat', sans-serif;
+            color: white;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .css-1aumxhk {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(15px);
+            border-radius: 15px;
+        }
+        .stButton>button {
+            background-color: #4a4a4a !important;
+            color: white !important;
+            border-radius: 30px !important;
+            transition: all 0.3s ease;
+        }
+        .stButton>button:hover {
+            transform: scale(1.05);
+            background-color: #6a4a4a !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
     def run(self):
-        st.set_page_config(page_title="TurboTalk Style Transfer", page_icon="🎨", layout="wide")
+        st.set_page_config(
+            page_title="TurboTalk Style Transfer", 
+            page_icon="🎨", 
+            layout="wide"
+        )
+        
+        self.add_advanced_styling()
         
         st.markdown("""
         <div style='text-align: center; padding: 20px;'>
             <h1 style='font-size: 4rem; color: white;'>
                 🎨 TurboTalk Style Transfer
             </h1>
+            <p style='color: rgba(255,255,255,0.8); font-size: 1.5rem;'>
+                Transform Images Into Masterpieces
+            </p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -134,6 +199,7 @@ class TurboTalkStyleTransfer:
                 step=0.1
             )
             
+            st.subheader("Advanced Options")
             enhance_details = st.checkbox("Enhance Image Details")
 
         content_image = st.file_uploader(
