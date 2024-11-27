@@ -1,8 +1,8 @@
-streamlit 
-tensorflow 
-tensorflow-hub 
-numpy 
-opencv-python 
-requests 
-matplotlib 
+streamlit
+tensorflow
+tensorflow-hub
+numpy
+opencv-python-headless
+requests
+matplotlib
 pillow
