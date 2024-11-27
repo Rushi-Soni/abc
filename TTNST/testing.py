@@ -75,18 +75,18 @@ class TurboTalkStyleTransfer:
     def load_image(self, img_path_or_url):
         try:
             if isinstance(img_path_or_url, str) and img_path_or_url.startswith('http'):
-            response = requests.get(img_path_or_url)
+                response = requests.get(img_path_or_url)
             if response.status_code != 200:
                 st.error("Failed to load image from URL. Please check the link.")
                 return None, None
-            img_array = np.asarray(bytearray(response.content), dtype=np.uint8)
-            img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-        else:
-            if isinstance(img_path_or_url, str):
-                img = cv2.imread(img_path_or_url)
-            else:
-                img_array = np.frombuffer(img_path_or_url.read(), np.uint8)
+                img_array = np.asarray(bytearray(response.content), dtype=np.uint8)
                 img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+            else:
+                if isinstance(img_path_or_url, str):
+                    img = cv2.imread(img_path_or_url)
+                else:
+                    img_array = np.frombuffer(img_path_or_url.read(), np.uint8)
+                    img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
         
         if img is None:
             st.error("Failed to load image. Please check the file path or URL.")
