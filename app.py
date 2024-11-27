@@ -5,12 +5,8 @@ import tensorflow_hub as hub
 import numpy as np
 import cv2
 import requests
-import matplotlib.pyplot as plt
-import tempfile
-import time
-import base64
-from PIL import Image
 import io
+from PIL import Image
 
 class TurboTalkStyleTransfer:
     def __init__(self):
@@ -47,21 +43,21 @@ class TurboTalkStyleTransfer:
         }
         
         self.style_images = {
-            "Starry Night": "starry_night.jpg",
-            "The Scream": "the_scream.jpg",
-            "Mona Lisa Interpretation": "Mona_Lisa.jpeg",
-            "Composition VII": "composition_vii.jpg",
-            "La Muse": "la_muse.jpg",
-            "Abstract Wave": "abstract_wave.png",
-            "Abstract Flow": "abstract_flow.jpeg",
-            "Abstract Spiral": "abstract_spiral.png",
-            "Mosaic": "mosaic.jpg",
-            "Udnie": "udnie.jpg",
-            "Watercolor Dream": "watercolors.png",
-            "Oil Painting Essence": "oil_paints.jpg",
-            "Feathers": "feathers.jpg",
-            "Wave": "wave.jpg",
-            "Candy": "candy.jpg"
+            "Starry Night": "images/starry_night.jpg",
+            "The Scream": "images/the_scream.jpg",
+            "Mona Lisa Interpretation": "images/Mona_Lisa.jpeg",
+            "Composition VII": "images/composition_vii.jpg",
+            "La Muse": "images/la_muse.jpg",
+            "Abstract Wave": "images/abstract_wave.png",
+            "Abstract Flow": "images/abstract_flow.jpeg",
+            "Abstract Spiral": "images/abstract_spiral.png",
+            "Mosaic": "images/mosaic.jpg",
+            "Udnie": "images/udnie.jpg",
+            "Watercolor Dream": "images/watercolors.png",
+            "Oil Painting Essence": "images/oil_paints.jpg",
+            "Feathers": "images/feathers.jpg",
+            "Wave": "images/wave.jpg",
+            "Candy": "images/candy.jpg"
         }
 
     def _initialize_model(self):
@@ -240,7 +236,7 @@ class TurboTalkStyleTransfer:
                         buffered = io.BytesIO()
                         Image.fromarray(processed_img).save(buffered, format="PNG")
                         
-                        st.download_button(
+ st.download_button(
                             label="💾 Download Masterpiece",
                             data=buffered.getvalue(),
                             file_name="turbotalk_masterpiece.png",
