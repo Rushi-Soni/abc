@@ -74,6 +74,7 @@ class TurboTalkStyleTransfer:
 
     def load_image(self, img_path_or_url):
     try:
+        # Start of the try block: Make sure everything inside is indented
         if isinstance(img_path_or_url, str) and img_path_or_url.startswith('http'):
             response = requests.get(img_path_or_url)
             if response.status_code != 200:
@@ -88,12 +89,14 @@ class TurboTalkStyleTransfer:
                 img_array = np.frombuffer(img_path_or_url.read(), np.uint8)
                 img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
         
+        # Convert the image color from BGR to RGB
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         original_shape = img.shape[:2]
         img = img.astype(np.float32) / 255.0
         return img[tf.newaxis, :], original_shape
 
     except Exception as e:
+        # Make sure this except block is indented
         st.error(f"Image Processing Error: {e}")
         return None, None
 
