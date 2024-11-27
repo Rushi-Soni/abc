@@ -125,7 +125,7 @@ class NeuralStyleTransferApp:
     def add_advanced_css(self):
         """Add custom CSS for styling the app."""
         st.markdown(""" 
-        <style>
+        <style >
         /* Vibrant Gradient Background */
         .stApp {
             background: linear-gradient(135deg, 
