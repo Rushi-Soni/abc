@@ -122,10 +122,10 @@ class NeuralStyleTransferApp:
             st.error(f"Error saving uploaded file: {e}")
             return None
 
-    def add_advanced_css(self):
+    def add_ advanced_css(self):
         """Add custom CSS for styling the app."""
         st.markdown(""" 
-        <style >
+        <style>
         /* Vibrant Gradient Background */
         .stApp {
             background: linear-gradient(135deg, 
