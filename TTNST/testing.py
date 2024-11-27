@@ -59,7 +59,7 @@ class TurboTalkStyleTransfer:
             "candy.jpg": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg=="
         }
 
-        # Write placeholder images to disk
+        # Write placeholder images
         for filename, base64_data in style_image_data.items():
             filepath = os.path.join(base_path, filename)
             if not os.path.exists(filepath):
@@ -96,24 +96,73 @@ class TurboTalkStyleTransfer:
         try:
             if enhance_details:
                 content_img = tf.image.adjust_contrast(content_img, 1.5)
-            
+
             style_img_resized = tf.image.resize(style_img, [256, 256])
             content_img_resized = tf.image.resize(content_img, [256, 256])
-            
-            # Apply the style transfer model
+
             stylized_image = self.model(content_img_resized, style_img_resized)[0]
-            
-            # Resize the result back to the original shape
-            stylized_image = tf.image.resize(stylized_image, [original_shape[0], original_shape[1]])
-            return stylized_image.numpy().astype(np.uint8)
-        except Exception as err:
-            st.error(f"Image stylization failed: {err}")
+
+            stylized_image = tf.image.resize(stylized_image, original_shape)
+            content_img_original = tf.image.resize(content_img, original_shape)
+
+            final_img = content_img_original[0] * (1 - intensity) + stylized_image * intensity
+            final_img = tf.clip_by_value(final_img, 0.0, 1.0)
+            final_img = tf.image.convert_image_dtype(final_img, tf.uint8)
+
+            return final_img.numpy()
+
+        except Exception as e:
+            st.error(f"Style Transfer Error: {e}")
             return None
 
-# Example usage:
-def main():
-    app = TurboTalkStyleTransfer()
-    app.run()
+    def load_image(self, image_file):
+        img = Image.open(image_file)
+        img = img.convert("RGB")
+        img_array = np.array(img)
+        original_shape = img_array.shape
+        img_array = tf.convert_to_tensor(img_array, dtype=tf.float32) / 255.0
+        return img_array, original_shape
+
+    def run(self):
+        st.set_page_config(page_title="TurboTalk Style Transfer", page_icon="🎨", layout="wide")
+
+        st.markdown("""
+        <div style='text-align: center; padding: 20px;'>
+            <h1 style='font-size: 4rem; color: white;'>
+                🎨 TurboTalk Style Transfer
+            </h1>
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.sidebar:
+            st.header("🎨 Style Transfer Settings")
+
+            style_category = st.selectbox(
+                "Style Category", 
+                list(self.style_categories.keys())
+            )
+
+            style_selection = st.selectbox(
+                "Choose Artistic Style", 
+                self.style_categories[style_category]
+            )
+
+            intensity = st.slider("Style Intensity", 0.1, 1.0, 0.6)
+            enhance_details = st.checkbox("Enhance Details")
+
+        content_image = st.file_uploader("Upload Content Image", type=["png", "jpg", "jpeg"])
+
+        if content_image:
+            content_img, original_shape = self.load_image(content_image)
+            style_image_path = self.style_images.get(style_selection)
+            if style_image_path:
+                style_img = self.load_image(style_image_path)[0]
+
+                final_img = self.stylize_image(content_img, style_img, original_shape, intensity, enhance_details)
+
+                if final_img is not None:
+                    st.image(final_img, caption="Stylized Image", use_column_width=True)
 
 if __name__ == "__main__":
-    main()
+    app = TurboTalkStyleTransfer()
+    app.run()
