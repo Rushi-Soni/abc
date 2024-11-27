@@ -122,7 +122,7 @@ class NeuralStyleTransferApp:
             st.error(f"Error saving uploaded file: {e}")
             return None
 
-    def add_ advanced_css(self):
+    def add_advanced_css(self):
         """Add custom CSS for styling the app."""
         st.markdown(""" 
         <style>
