@@ -8,268 +8,242 @@ import requests
 import matplotlib.pyplot as plt
 import tempfile
 import time
+import base64
+from PIL import Image
+import io
 
-class NeuralStyleTransferApp:
+class TurboTalkStyleTransfer:
     def __init__(self):
-        # Disable GPU usage
-        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # This ensures CPU is used
+        self._configure_environment()
+        self._load_style_resources()
+        self._initialize_model()
+
+    def _configure_environment(self):
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+        tf.get_logger().setLevel('ERROR')
         
-        # Expanded style images with new abstract and artistic styles
-        self.style_images = {
-            # Existing Styles
-            "Wave": "wave.jpg",
-            "Udnie": "udnie.jpg",
-            "The Scream": "the_scream.jpg",
-            "Starry Night": "starry_night.jpg",
-            "Mosaic": "mosaic.jpg",
-            
-            # New Abstract and Artistic Styles
-            "Abstract Wave": "abstract_wave.png",
-            "Abstract Flow": "abstract_flow.jpeg",
-            "Abstract Spiral": "abstract_spiral.png",
-            "Mona Lisa Interpretation": "Mona_Lisa.jpeg",
-            "Watercolor Dream": "watercolors.png",
-            "Oil Painting Essence": "oil_paints.jpg",
-            
-            # Additional Existing Styles
-            "La Muse": "la_muse.jpg",
-            "Feathers": "feathers.jpg",
-            "Composition VII": "composition_vii.jpg",
-            "Candy": "candy.jpg"
-        }
-        
-        # Limit GPU memory growth
         gpus = tf.config.experimental.list_physical_devices('GPU')
         if gpus:
             try:
                 for gpu in gpus:
                     tf.config.experimental.set_memory_growth(gpu, True)
             except RuntimeError as e:
-                print(e)
+                st.error(f"GPU Configuration Error: {e}")
+
+    def _load_style_resources(self):
+        self.style_categories = {
+            "Classic Art": [
+                "Starry Night", "The Scream", "Mona Lisa Interpretation", 
+                "Composition VII", "La Muse"
+            ],
+            "Abstract Styles": [
+                "Abstract Wave", "Abstract Flow", "Abstract Spiral", 
+                "Mosaic", "Udnie"
+            ],
+            "Artistic Techniques": [
+                "Watercolor Dream", "Oil Painting Essence", 
+                "Feathers", "Wave", "Candy"
+            ]
+        }
         
-        # Load the pretrained style transfer model
+        self.style_images = {
+            "Starry Night": "starry_night.jpg",
+            "The Scream": "the_scream.jpg",
+            "Mona Lisa Interpretation": "Mona_Lisa.jpeg",
+            "Composition VII": "composition_vii.jpg",
+            "La Muse": "la_muse.jpg",
+            "Abstract Wave": "abstract_wave.png",
+            "Abstract Flow": "abstract_flow.jpeg",
+            "Abstract Spiral": "abstract_spiral.png",
+            "Mosaic": "mosaic.jpg",
+            "Udnie": "udnie.jpg",
+            "Watercolor Dream": "watercolors.png",
+            "Oil Painting Essence": "oil_paints.jpg",
+            "Feathers": "feathers.jpg",
+            "Wave": "wave.jpg",
+            "Candy": "candy.jpg"
+        }
+
+    def _initialize_model(self):
         try:
             self.model = hub.load('https://tfhub.dev/google/magenta/arbitrary-image-stylization-v1-256/2')
         except Exception as model_err:
-            st.error(f"Error loading model: {model_err}")
+            st.error(f"Model Loading Failed: {model_err}")
             self.model = None
+            st.warning("Please check your internet connection or model availability.")
 
-    def download_image(self, url):
-        """Robust image download with proper headers and error handling"""
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
+    def load_image(self, img_path_or_url):
         try:
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-           
-            # Convert response content to numpy array
-            nparr = np.frombuffer(response.content, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-           
-            if img is None:
-                raise ValueError("Failed to decode image")
-           
-            return img
-        except Exception as e:
-            st.error(f"Error downloading image from {url}: {e}")
-            return None
-
-    def load_image(self, img_path_or_url, max_dim=512):
-        """Enhanced image loading with robust error handling"""
-        try:
-            # Checking if the image is a URL
-            if img_path_or_url.startswith('http'):
-                img = self.download_image(img_path_or_url)
+            if isinstance(img_path_or_url, str) and img_path_or_url.startswith('http'):
+                response = requests.get(img_path_or_url)
+                img_array = np.asarray(bytearray(response.content), dtype=np.uint8)
+                img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
             else:
-                # Local file path processing
-                if os.path.exists(img_path_or_url):
+                if isinstance(img_path_or_url, str):
                     img = cv2.imread(img_path_or_url)
                 else:
-                    # If file doesn't exist, try loading from the same directory
-                    local_path = os.path.join(os.path.dirname(__file__), img_path_or_url)
-                    if os.path.exists(local_path):
-                        img = cv2.imread(local_path)
-                    else:
-                        st.error(f"File not found: {img_path_or_url}")
-                        return None
+                    img_array = np.frombuffer(img_path_or_url.read(), np.uint8)
+                    img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
             
-            # Convert BGR to RGB
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-           
-            # Resize maintaining aspect ratio
-            h, w = img.shape[:2]
-            scale = max_dim / max(h, w)
-            new_h, new_w = int(h * scale), int(w * scale)
-            img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-           
-            # Normalize to [0,1] and add batch dimension
+            original_shape = img.shape[:2]
             img = img.astype(np.float32) / 255.0
-            return img[np.newaxis, ...]
+            return img[tf.newaxis, :], original_shape
         except Exception as e:
-            st.error(f"Error loading image: {e}")
-            return None
+            st.error(f"Image Processing Error: {e}")
+            return None, None
 
-    def stylize_image(self, content_img, style_img):
-        """Enhanced style transfer with progress tracking and error handling"""
+    def stylize_image(self, content_img, style_img, original_shape, intensity=1.0, enhance_details=False):
         try:
-            progress_bar = st.progress(0)
-            status_text = st.empty()
+            if enhance_details:
+                content_img = tf.image.adjust_contrast(content_img, 1.5)
             
-            status_text.text("🔬 Analyzing Image Characteristics...")
-            time.sleep(0.5)
-            progress_bar.progress(20)
+            # Process images for style transfer
+            style_img_resized = tf.image.resize(style_img, [256, 256])
+            content_img_resized = tf.image.resize(content_img, [256, 256])
             
-            status_text.text("🎨 Applying Neural Style Transfer Magic...")
-            time.sleep(0.5)
-            progress_bar.progress(50)
+            # Apply style transfer
+            stylized_image = self.model(content_img_resized, style_img_resized)[0]
             
-            stylized_image = self.model(tf.constant(content_img), tf.constant(style_img))[0]
+            # Resize back to original dimensions
+            stylized_image = tf.image.resize(stylized_image, original_shape)
+            content_img_original = tf.image.resize(content_img, original_shape)
             
-            status_text.text("✨ Finalizing Artistic Transformation...")
-            progress_bar.progress(80)
-            time.sleep(0.5)
+            # Apply intensity blending
+            final_img = content_img_original[0] * (1 - intensity) + stylized_image * intensity
+            final_img = tf.clip_by_value(final_img, 0.0, 1.0)
+            final_img = tf.image.convert_image_dtype(final_img, tf.uint8)
             
-            stylized_img_np = np.squeeze(stylized_image.numpy())
-            stylized_img_np = (stylized_img_np * 255).astype(np.uint8)
+            return final_img.numpy()
             
-            progress_bar.progress(100)
-            status_text.text("🎉 Style Transfer Complete!")
-            time.sleep(0.5)
-            
-            progress_bar.empty()
-            status_text.empty()
-            
-            return stylized_img_np
         except Exception as e:
-            st.error(f"Error during style transfer: {e}")
+            st.error(f"Style Transfer Error: {e}")
             return None
 
-    def save_uploaded_file(self, uploaded_file):
-        """Save uploaded file to a temporary location"""
-        try:
-            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                tmp_file.write(uploaded_file.read())
-                return tmp_file.name
-        except Exception as e:
-            st.error(f"Error saving uploaded file: {e}")
-            return None
-
-    def add_advanced_css(self):
-        """Comprehensive CSS styling with advanced animations and effects"""
-        st.markdown(""" 
+    def add_advanced_styling(self):
+        st.markdown("""
         <style>
-        /* Vibrant Gradient Background */
         .stApp {
-            background: linear-gradient(135deg, 
-                rgba(102, 126, 234, 0.8), 
-                rgba(118, 75, 162, 0.8), 
-                rgba(35, 166, 213, 0.8)
-            );
+            background: linear-gradient(-45deg, 
+                #ee7752, #e73c7e, #23a6d5, #23d5ab);
             background-size: 400% 400%;
-            animation: gradient-flow 15s ease infinite;
+            animation: gradient-bg 15s ease infinite;
         }
-
-        @keyframes gradient-flow {
+        @keyframes gradient-bg {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
-
-        /* Modern Typography */
-        h1 {
+        h1, h2, h3 {
             font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            color: white !important;
+            color: white;
             text-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            letter-spacing: 1px;
-            text-align: center;
         }
-
-        /* Sidebar Enhancements */
         .css-1aumxhk {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(15px);
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
-
-        /* Interactive Buttons */
         .stButton>button {
             background-color: #4a4a4a !important;
             color: white !important;
             border-radius: 30px !important;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+            transition: all 0.3s ease;
         }
-
         .stButton>button:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            transform: scale(1.05);
             background-color: #6a4a4a !important;
-        }
-
-        /* Image Containers */
-        .image-container {
-            border-radius: 15px;
-            overflow: hidden;
-            transition: all 0.4s ease;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        }
-
-        .image-container:hover {
-            transform: scale(1.03);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
         }
         </style>
         """, unsafe_allow_html=True)
 
     def run(self):
-        # Set page configuration
         st.set_page_config(
-            page_title="Neural Art Generator", 
+            page_title="TurboTalk Style Transfer", 
             page_icon="🎨", 
             layout="wide"
         )
-
-        # Apply advanced CSS
-        self.add_advanced_css()
         
-        # Animated and dynamic title with more flair
-        st.markdown(""" 
+        self.add_advanced_styling()
+        
+        st.markdown("""
         <div style='text-align: center; padding: 20px;'>
-            <h1 style='font-size: 3.5rem; color: white; margin-bottom: 10px;'>
-                🎨 Neural Artistic Transmutation
+            <h1 style='font-size: 4rem; color: white;'>
+                🎨 TurboTalk Style Transfer
             </h1>
-            <p style='color: rgba(255,255,255,0.8); font-size: 1.2rem;'>
-                Transform your photos into mesmerizing artworks with AI.
+            <p style='color: rgba(255,255,255,0.8); font-size: 1.5rem;'>
+                Transform Images Into Masterpieces
             </p>
         </div>
         """, unsafe_allow_html=True)
-        
-        # Upload content image
-        content_image = st.file_uploader("Upload Your Content Image", type=["jpg", "jpeg", "png"])
-        if content_image:
-            content_image_path = self.save_uploaded_file(content_image)
-            content_img = self.load_image(content_image_path)
-            if content_img is None:
-                return
-        
-        # Select style
-        style_selection = st.selectbox("Choose Your Artistic Style", list(self.style_images.keys()))
-        style_img_path = self.style_images[style_selection]
-        style_img = self.load_image(style_img_path)
-        if style_img is None:
-            return
-        
-        # Run the style transfer
-        if st.button("Generate Art"):
-            stylized_img = self.stylize_image(content_img, style_img)
-            if stylized_img is not None:
-                st.image(stylized_img, caption="Your Artistic Transformation", use_column_width=True)
+
+        with st.sidebar:
+            st.header("🎨 Style Transfer Settings")
+            
+            style_category = st.selectbox(
+                "Style Category", 
+                list(self.style_categories.keys())
+            )
+            
+            style_selection = st.selectbox(
+                "Choose Artistic Style", 
+                self.style_categories[style_category]
+            )
+            
+            style_intensity = st.slider(
+                "Style Transfer Intensity", 
+                min_value=0.0, 
+                max_value=1.0, 
+                value=0.8, 
+                step=0.1
+            )
+            
+            st.subheader("Advanced Options")
+            enhance_details = st.checkbox("Enhance Image Details")
+
+        content_image = st.file_uploader(
+            "Upload Your Content Image", 
+            type=["jpg", "jpeg", "png"],
+            help="Select an image to apply artistic style"
+        )
+
+        if content_image and st.button("Generate Artistic Masterpiece"):
+            with st.spinner("Creating your masterpiece..."):
+                content_img, original_shape = self.load_image(content_image)
+                style_img, _ = self.load_image(self.style_images[style_selection])
+                
+                if content_img is not None and style_img is not None:
+                    stylized_img = self.stylize_image(
+                        content_img, 
+                        style_img,
+                        original_shape,
+                        intensity=style_intensity,
+                        enhance_details=enhance_details
+                    )
+                    
+                    if stylized_img is not None:
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.image(content_image, caption="Original Image", use_column_width=True)
+                        
+                        with col2:
+                            processed_img = np.squeeze(stylized_img)
+                            st.image(processed_img, caption=f"Stylized with {style_selection}", use_column_width=True)
+                        
+                        buffered = io.BytesIO()
+                        Image.fromarray(processed_img).save(buffered, format="PNG")
+                        
+                        st.download_button(
+                            label="💾 Download Masterpiece",
+                            data=buffered.getvalue(),
+                            file_name="turbotalk_masterpiece.png",
+                            mime="image/png"
+                        )
+
+def main():
+    app = TurboTalkStyleTransfer()
+    app.run()
 
 if __name__ == "__main__":
-    app = NeuralStyleTransferApp()
-    app.run()
+    main()
