@@ -7,17 +7,13 @@ import requests
 from PIL import Image
 import random
 import io
-from googleapiclient.discovery import build
+from icrawler.builtin import GoogleImageCrawler
 
 class TurboTalkStyleTransfer:
     def __init__(self):
         self._configure_environment()
         self._load_style_resources()
         self._initialize_model()
-
-        # Set up your Google Custom Search API credentials
-        self.api_key = "YOUR_GOOGLE_API_KEY"
-        self.cse_id = "YOUR_CUSTOM_SEARCH_ENGINE_ID"
 
     def _configure_environment(self):
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
@@ -50,24 +46,17 @@ class TurboTalkStyleTransfer:
 
     def fetch_image_from_google(self, query, num_results=1):
         try:
-            # Build the Google Custom Search API client
-            service = build("customsearch", "v1", developerKey=self.api_key)
-            res = service.cse().list(q=query, cx=self.cse_id, searchType="image", num=num_results).execute()
+            # Use icrawler to fetch images
+            google_crawler = GoogleImageCrawler(storage={'root_dir': 'crawler_img'})
+            google_crawler.crawl(keyword=query, max_num=num_results)
 
-            if 'items' in res:
-                image_url = res['items'][0]['link']  # Get the URL of the first image
-                st.write(f"Image URL: {image_url}")
+            # Get the first image from the crawl folder
+            image_path = f"crawler_img/downloads/{query.replace(' ', '_')}/000001.jpg"
+            img = Image.open(image_path).convert("RGB")
+            img = np.array(img)
+            img = img.astype(np.float32) / 255.0  # Normalize the image
+            return img[tf.newaxis, :]  # Add batch dimension
 
-                # Download the image
-                img_data = requests.get(image_url).content
-                img = Image.open(io.BytesIO(img_data))
-                img = img.convert("RGB")  # Convert to RGB if needed
-                img = np.array(img)
-                img = img.astype(np.float32) / 255.0  # Normalize the image
-                return img[tf.newaxis, :]  # Add batch dimension
-            else:
-                st.error("No image found. Try another query.")
-                return None
         except Exception as e:
             st.error(f"Error fetching image: {e}")
             return None
