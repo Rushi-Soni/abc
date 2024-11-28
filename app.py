@@ -6,7 +6,7 @@ import numpy as np
 import requests
 import io
 from PIL import Image
-from googlesearch import search
+import GoogleImageScraper
 import random
 
 class TurboTalkStyleTransfer:
@@ -43,21 +43,16 @@ class TurboTalkStyleTransfer:
             self.model = None
             st.warning("Please check your internet connection or model availability.")
 
-    def fetch_image_from_google(self, prompt):
-        # Search Google for image URLs related to the prompt
-        query = f"{prompt} image"
+    def fetch_image_from_google(self, prompt, limit=5):
+        # Use GoogleImageScraper to get a list of image URLs based on the prompt
         try:
-            image_url = None
-            # Fetch search results
-            search_results = search(query, num_results=10)  # Increase the number of results
-            for url in search_results:
-                if url.lower().endswith(('jpg', 'jpeg', 'png', 'webp', 'gif')):  # More formats
-                    image_url = url
-                    break
-            
-            if image_url:
+            # Fetch image URLs
+            image_data = GoogleImageScraper.urls(prompt, limit=limit, arguments={})
+            if 'images' in image_data and image_data['images']:
+                image_url = image_data['images'][0]['url']
                 st.write(f"Fetched image URL: {image_url}")
-                # Fetch the image data
+                
+                # Download the image data
                 img_data = requests.get(image_url).content
                 img = Image.open(io.BytesIO(img_data))
                 img = img.convert("RGB")  # Convert to RGB if needed
@@ -65,7 +60,7 @@ class TurboTalkStyleTransfer:
                 img = img.astype(np.float32) / 255.0
                 return img[tf.newaxis, :]
             else:
-                st.error("No valid image found from the search results. Try refining your prompt.")
+                st.error("No valid image found from the Google Image search.")
                 return None
         except Exception as e:
             st.error(f"Error fetching image: {e}")
@@ -148,10 +143,10 @@ class TurboTalkStyleTransfer:
             layout="wide"
         )
         
-        st.markdown("""
-        <div style='text-align: center; padding: 20px;'>
-            <h1 style='font-size: 4rem; color: white;'>🎨 TurboTalk Style Transfer</h1>
-            <p style='color: rgba(255,255,255,0.8); font-size: 1.5rem;'>Transform Images Into Masterpieces</p>
+        st.markdown(""" 
+        <div style='text-align: center; padding: 20px;'> 
+            <h1 style='font-size: 4rem; color: white;'>🎨 TurboTalk Style Transfer</h1> 
+            <p style='color: rgba(255,255,255,0.8); font-size: 1.5rem;'>Transform Images Into Masterpieces</p> 
         </div>
         """, unsafe_allow_html=True)
 
@@ -186,7 +181,6 @@ class TurboTalkStyleTransfer:
                             with col1:
                                 st.image(content_img[0], caption="Fetched Image", use_column_width=True)
                             
-
                             with col2:
                                 processed_img = np.squeeze(stylized_img)
                                 st.image(processed_img, caption="Stylized Image", use_column_width=True)
