@@ -5,10 +5,9 @@ import tensorflow_hub as hub
 import numpy as np
 import requests
 from PIL import Image
-from icrawler.builtin import GoogleImageCrawler
 import random
 import io
-
+from icrawler.builtin import GoogleImageCrawler
 
 class TurboTalkStyleTransfer:
     def __init__(self):
@@ -47,30 +46,22 @@ class TurboTalkStyleTransfer:
 
     def fetch_image_from_google(self, keyword, max_num=1):
         try:
-            # Use icrawler to download the image
+            # Use icrawler to get the image URL
             google_crawler = GoogleImageCrawler(storage={'root_dir': 'crawler_img'})
             google_crawler.crawl(keyword=keyword, max_num=max_num)
 
-            # Find the path to the downloaded image (direct in-memory fetching instead)
+            # Check for downloaded images
             search_dir = os.path.join('crawler_img', 'downloads')
-            if not os.path.exists(search_dir):
-                st.error("Crawler download folder does not exist. Check the path and try again.")
-                return None
-
-            # Search for the first .jpg file in the directory
             image_paths = [os.path.join(search_dir, file) for file in os.listdir(search_dir) if file.endswith('.jpg')]
 
             if not image_paths:
-                st.error(f"No .jpg images found in {search_dir}. Please check the download process.")
+                st.error("No .jpg images found. Please try again.")
                 return None
 
-            # Log the found image path
-            image_path = image_paths[0]  # Take the first image
-            st.write(f"Image found at: {image_path}")
-
-            # Open the image
+            # Select the first image from the list of downloaded images
+            image_path = image_paths[0]
             img = Image.open(image_path)
-            img = img.convert("RGB")  # Ensure it's in RGB format
+            img = img.convert("RGB")
             img = np.array(img)
             img = img.astype(np.float32) / 255.0
             return img[tf.newaxis, :]  # Add batch dimension
