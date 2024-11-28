@@ -68,9 +68,9 @@ class TurboTalkStyleTransfer:
             st.error(f"Error loading style image {image_path}: {e}")
             return None, None
 
-    def fetch_image_from_google(self, query, num_results=5):
+    def fetch_image_from_google(self, query, num_results=10):
         """
-        Fetch images from Google using icrawler with improved error handling.
+        Fetch images from Google using icrawler with comprehensive error handling and diagnostics.
         
         Args:
             query (str): Search query for images
@@ -80,43 +80,79 @@ class TurboTalkStyleTransfer:
             numpy array or None: Processed image ready for style transfer
         """
         try:
-            # Ensure download directory exists
-            os.makedirs('crawler_img/downloads', exist_ok=True)
-
-            # Use icrawler to fetch images
-            google_crawler = GoogleImageCrawler(storage={'root_dir': 'crawler_img/downloads'})
-            google_crawler.crawl(keyword=query, max_num=num_results)
-
-            # Construct the path where the image should be
-            search_folder = f"crawler_img/downloads/{query.replace(' ', '_')}"
+            # Sanitize query and create safe folder name
+            safe_query = ''.join(c if c.isalnum() or c in [' ', '_'] else '_' for c in query)
+            safe_query = safe_query.replace(' ', '_')
             
-            # Verify folder and files exist
-            if not os.path.exists(search_folder):
-                st.error(f"No images found for query: {query}")
+            # Ensure download directory exists
+            download_base = 'crawler_img/downloads'
+            os.makedirs(download_base, exist_ok=True)
+            
+            # Detailed path for this specific query
+            search_folder = os.path.join(download_base, safe_query)
+            os.makedirs(search_folder, exist_ok=True)
+
+            # Diagnostic print
+            st.info(f"Searching for images with query: {query}")
+            st.info(f"Download folder: {search_folder}")
+
+            # Use icrawler with more configurable storage
+            google_crawler = GoogleImageCrawler(
+                storage={'root_dir': search_folder},
+                parser_threads=2,
+                downloader_threads=2,
+                signal_handler=lambda *args: None  # Suppress signals
+            )
+            
+            # Enhanced crawling with timeout
+            try:
+                google_crawler.crawl(
+                    keyword=query, 
+                    max_num=num_results,
+                    min_size=(100, 100),  # Minimum image size filter
+                    file_idx_offset=0
+                )
+            except Exception as crawl_err:
+                st.error(f"Image crawling failed: {crawl_err}")
                 return None
 
-            # List image files
-            image_files = [f for f in os.listdir(search_folder) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
+            # Verify download results
+            image_files = [
+                f for f in os.listdir(search_folder) 
+                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))
+            ]
+            
+            st.info(f"Found {len(image_files)} images")
             
             if not image_files:
-                st.error(f"No valid image files found for query: {query}")
+                st.error(f"No images downloaded for query: {query}")
                 return None
 
-            # Try loading the first valid image
+            # Try multiple image loading attempts
             for img_file in image_files:
                 try:
                     full_path = os.path.join(search_folder, img_file)
+                    
+                    # Detailed file information
+                    st.info(f"Attempting to process: {full_path}")
+                    st.info(f"File exists: {os.path.exists(full_path)}")
+                    st.info(f"File size: {os.path.getsize(full_path)} bytes")
+                    
                     img = Image.open(full_path).convert("RGB")
                     img = np.array(img).astype(np.float32) / 255.0
-                    return img[tf.newaxis, :]  # Add batch dimension
+                    
+                    # Validate image shape
+                    if img.ndim == 3 and img.shape[2] in [1, 3]:
+                        return img[tf.newaxis, :]  # Add batch dimension
+                    
                 except Exception as img_err:
-                    st.warning(f"Could not process image {img_file}: {img_err}")
+                    st.warning(f"Failed to process image {img_file}: {img_err}")
 
             st.error("Could not process any downloaded images")
             return None
 
         except Exception as e:
-            st.error(f"Error fetching image from Google: {e}")
+            st.error(f"Comprehensive image fetch error: {e}")
             return None
 
     def random_style_image(self):
