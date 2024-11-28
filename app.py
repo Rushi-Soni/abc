@@ -3,7 +3,6 @@ import streamlit as st
 import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
-import cv2
 import requests
 import io
 from PIL import Image
@@ -160,20 +159,17 @@ class TurboTalkStyleTransfer:
             st.subheader("Advanced Options")
             enhance_details = st.checkbox("Enhance Image Details")
 
-        content_image = st.file_uploader("Upload Your Content Image", type=["jpg", "jpeg", "png"])
-
-        if prompt and content_image and st.button("Generate Artistic Masterpiece"):
+        if prompt and st.button("Start Style Transfer"):
             with st.spinner("Creating your masterpiece..."):
-                content_img, original_shape = self.load_image(content_image)
-                fetched_image = self.fetch_image_from_google(prompt)
-                
-                if content_img is not None and fetched_image is not None:
+                content_img = self.fetch_image_from_google(prompt)
+                if content_img is not None:
                     style_img_path = self.random_style_image()
                     style_img, _ = self.load_image(style_img_path)
                     
                     if style_img is not None:
+                        original_shape = content_img.shape[1:3]
                         stylized_img = self.stylize_image(
-                            fetched_image, 
+                            content_img, 
                             style_img,
                             original_shape,
                             intensity=style_intensity,
@@ -184,7 +180,7 @@ class TurboTalkStyleTransfer:
                             col1, col2 = st.columns(2)
                             
                             with col1:
-                                st.image(content_image, caption="Original Image", use_column_width=True)
+                                st.image(content_img[0], caption="Fetched Image", use_column_width=True)
                             
                             with col2:
                                 processed_img = np.squeeze(stylized_img)
