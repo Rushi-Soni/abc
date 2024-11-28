@@ -182,6 +182,7 @@ class TurboTalkStyleTransfer:
                             with col1:
                                 st.image(content_img[0], caption="Fetched Image", use_column_width=True)
                             
+
                             with col2:
                                 processed_img = np.squeeze(stylized_img)
                                 st.image(processed_img, caption="Stylized Image", use_column_width=True)
