@@ -6,7 +6,7 @@ import numpy as np
 import requests
 import io
 from PIL import Image
-from bs4 import BeautifulSoup
+from googlesearch import search
 import random
 
 class TurboTalkStyleTransfer:
@@ -44,26 +44,29 @@ class TurboTalkStyleTransfer:
             st.warning("Please check your internet connection or model availability.")
 
     def fetch_image_from_google(self, prompt):
-        # Search Google Images using BeautifulSoup and Requests
-        search_url = f"https://www.google.com/search?hl=en&tbm=isch&q={prompt}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
-        
+        # Search Google for image URLs related to the prompt
+        query = f"{prompt} image"
         try:
-            response = requests.get(search_url, headers=headers)
-            soup = BeautifulSoup(response.text, 'html.parser')
+            image_url = None
+            # Fetch search results
+            search_results = search(query, num_results=5)  # Get top 5 results
+            for url in search_results:
+                if url.endswith(('jpg', 'jpeg', 'png')):  # Make sure it's an image link
+                    image_url = url
+                    break
             
-            # Find the image URLs in the page
-            img_tags = soup.find_all('img')
-            img_url = img_tags[1]['src']  # Skip the first image tag (Google logo)
-            st.write(f"Fetched image URL: {img_url}")
-            
-            # Fetch the image
-            img_data = requests.get(img_url).content
-            img = Image.open(io.BytesIO(img_data))
-            img = img.convert("RGB")  # Convert to RGB
-            img = np.array(img)
-            img = img.astype(np.float32) / 255.0
-            return img[tf.newaxis, :]
+            if image_url:
+                st.write(f"Fetched image URL: {image_url}")
+                # Fetch the image data
+                img_data = requests.get(image_url).content
+                img = Image.open(io.BytesIO(img_data))
+                img = img.convert("RGB")  # Convert to RGB if needed
+                img = np.array(img)
+                img = img.astype(np.float32) / 255.0
+                return img[tf.newaxis, :]
+            else:
+                st.error("No valid image found.")
+                return None
         except Exception as e:
             st.error(f"Error fetching image: {e}")
             return None
