@@ -9,6 +9,7 @@ from PIL import Image
 import GoogleImageScraper
 import random
 
+
 class TurboTalkStyleTransfer:
     def __init__(self):
         self._configure_environment()
@@ -44,13 +45,13 @@ class TurboTalkStyleTransfer:
             self.model = None
             st.warning("Please check your internet connection or model availability.")
 
-    def fetch_image_from_google(self, prompt, limit=5):
+    def fetch_image_from_google(self, query, limit=5):
         try:
-            st.write(f"Searching for: {prompt}")
-            image_data = GoogleImageScraper.urls(prompt, limit=limit, arguments={})
+            st.write(f"Searching for: {query}")
+            image_data = GoogleImageScraper.urls(query, limit=limit, arguments={})
             
-            if 'images' in image_data and image_data['images']:
-                image_url = image_data['images'][0]['url']
+            if image_data:
+                image_url = image_data[0]  # Get the first image URL
                 st.write(f"Fetched image URL: {image_url}")
                 
                 # Download the image data
@@ -166,6 +167,7 @@ class TurboTalkStyleTransfer:
                                 file_name="turbotalk_masterpiece.png",
                                 mime="image/png"
                             )
+
 
 def main():
     app = TurboTalkStyleTransfer()
