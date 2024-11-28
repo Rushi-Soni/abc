@@ -3,12 +3,10 @@ import streamlit as st
 import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
-import requests
-import io
 from PIL import Image
-import GoogleImageScraper
+from icrawler.builtin import GoogleImageCrawler
 import random
-
+import io
 
 class TurboTalkStyleTransfer:
     def __init__(self):
@@ -45,24 +43,25 @@ class TurboTalkStyleTransfer:
             self.model = None
             st.warning("Please check your internet connection or model availability.")
 
-    def fetch_image_from_google(self, query, limit=5):
+    def fetch_image_from_google(self, keyword, max_num=1):
         try:
-            st.write(f"Searching for: {query}")
-            image_data = GoogleImageScraper.urls(query, limit=limit, arguments={})
+            # Use icrawler to download the image
+            google_crawler = GoogleImageCrawler(storage={'root_dir': 'crawler_img'})
+            google_crawler.crawl(keyword=keyword, max_num=max_num)
             
-            if image_data:
-                image_url = image_data[0]  # Get the first image URL
-                st.write(f"Fetched image URL: {image_url}")
+            # Fetch the path to the downloaded image
+            image_path = os.path.join('crawler_img', 'downloads', keyword, '000001.jpg')
+            if os.path.exists(image_path):
+                st.write(f"Fetched image from Google with keyword '{keyword}': {image_path}")
                 
-                # Download the image data
-                img_data = requests.get(image_url).content
-                img = Image.open(io.BytesIO(img_data))
-                img = img.convert("RGB")  # Convert to RGB if needed
+                # Open the image
+                img = Image.open(image_path)
+                img = img.convert("RGB")  # Ensure it's in RGB format
                 img = np.array(img)
                 img = img.astype(np.float32) / 255.0
-                return img[tf.newaxis, :]
+                return img[tf.newaxis, :]  # Add batch dimension
             else:
-                st.error("No valid image found from the Google Image search. Try refining your prompt.")
+                st.error("No image found. Please try again.")
                 return None
         except Exception as e:
             st.error(f"Error fetching image: {e}")
@@ -116,12 +115,10 @@ class TurboTalkStyleTransfer:
             layout="wide"
         )
         
-        st.markdown("""
-        <div style='text-align: center; padding: 20px;'>
-            <h1 style='font-size: 4rem; color: white;'>🎨 TurboTalk Style Transfer</h1>
-            <p style='color: rgba(255,255,255,0.8); font-size: 1.5rem;'>Transform Images Into Masterpieces</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div style='text-align: center; padding: 20px;'>
+                        <h1 style='font-size: 4rem; color: white;'>🎨 TurboTalk Style Transfer</h1>
+                        <p style='color: rgba(255,255,255,0.8); font-size: 1.5rem;'>Transform Images Into Masterpieces</p>
+                    </div>""", unsafe_allow_html=True)
 
         prompt = st.text_input("Enter a prompt for Google Images", "")
 
