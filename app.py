@@ -96,12 +96,11 @@ class TurboTalkStyleTransfer:
             st.info(f"Searching for images with query: {query}")
             st.info(f"Download folder: {search_folder}")
 
-            # Use icrawler with more configurable storage
+            # Use icrawler without signal_handler
             google_crawler = GoogleImageCrawler(
                 storage={'root_dir': search_folder},
                 parser_threads=2,
-                downloader_threads=2,
-                signal_handler=lambda *args: None  # Suppress signals
+                downloader_threads=2
             )
             
             # Enhanced crawling with timeout
