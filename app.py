@@ -43,45 +43,89 @@ class TurboTalkStyleTransfer:
             self.model = None
             st.warning("Please check your internet connection or model availability.")
 
-    def fetch_image_from_google(self, query, num_results=1):
+    def load_image(self, image_path):
+        """
+        Load an image from a file path and prepare it for style transfer.
+        
+        Args:
+            image_path (str): Path to the image file
+        
+        Returns:
+            tuple: (processed image as numpy array, original image shape)
+        """
         try:
+            # Open and convert image to RGB
+            img = Image.open(image_path).convert("RGB")
+            
+            # Convert to numpy array and normalize
+            img_array = np.array(img).astype(np.float32) / 255.0
+            
+            # Add batch dimension
+            img_tensor = img_array[tf.newaxis, :]
+            
+            return img_tensor, img_array.shape
+        except Exception as e:
+            st.error(f"Error loading style image {image_path}: {e}")
+            return None, None
+
+    def fetch_image_from_google(self, query, num_results=5):
+        """
+        Fetch images from Google using icrawler with improved error handling.
+        
+        Args:
+            query (str): Search query for images
+            num_results (int): Number of images to attempt to download
+        
+        Returns:
+            numpy array or None: Processed image ready for style transfer
+        """
+        try:
+            # Ensure download directory exists
+            os.makedirs('crawler_img/downloads', exist_ok=True)
+
             # Use icrawler to fetch images
-            google_crawler = GoogleImageCrawler(storage={'root_dir': 'crawler_img'})
+            google_crawler = GoogleImageCrawler(storage={'root_dir': 'crawler_img/downloads'})
             google_crawler.crawl(keyword=query, max_num=num_results)
 
             # Construct the path where the image should be
             search_folder = f"crawler_img/downloads/{query.replace(' ', '_')}"
             
-            # Debug: Check if the folder exists
-            st.write(f"Searching folder: {search_folder}")
-            
-            # Ensure the folder exists and fetch the image
-            if os.path.exists(search_folder):
-                st.write(f"Found folder: {search_folder}")
-                
-                # List the files in the directory to verify
-                files = os.listdir(search_folder)
-                st.write(f"Files in directory: {files}")
-
-                # If files exist, proceed to load the image
-                if files:
-                    image_path = os.path.join(search_folder, files[0])  # First file found
-                    st.write(f"Found image: {image_path}")
-                    img = Image.open(image_path).convert("RGB")
-                    img = np.array(img)
-                    img = img.astype(np.float32) / 255.0  # Normalize the image
-                    return img[tf.newaxis, :]  # Add batch dimension
-                else:
-                    st.error(f"No images found in the directory: {search_folder}.")
-                    return None
-            else:
-                st.error(f"Directory not found for query: {query}. Ensure images were downloaded correctly.")
+            # Verify folder and files exist
+            if not os.path.exists(search_folder):
+                st.error(f"No images found for query: {query}")
                 return None
+
+            # List image files
+            image_files = [f for f in os.listdir(search_folder) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))]
+            
+            if not image_files:
+                st.error(f"No valid image files found for query: {query}")
+                return None
+
+            # Try loading the first valid image
+            for img_file in image_files:
+                try:
+                    full_path = os.path.join(search_folder, img_file)
+                    img = Image.open(full_path).convert("RGB")
+                    img = np.array(img).astype(np.float32) / 255.0
+                    return img[tf.newaxis, :]  # Add batch dimension
+                except Exception as img_err:
+                    st.warning(f"Could not process image {img_file}: {img_err}")
+
+            st.error("Could not process any downloaded images")
+            return None
+
         except Exception as e:
-            st.error(f"Error fetching image: {e}")
+            st.error(f"Error fetching image from Google: {e}")
             return None
 
     def random_style_image(self):
+        """
+        Randomly select a style image based on weighted probabilities.
+        
+        Returns:
+            str: Path to the selected style image
+        """
         # Define chances for each style
         style_weights = {
             "Mona Lisa": 3,
@@ -97,6 +141,19 @@ class TurboTalkStyleTransfer:
         return self.style_images[selected_style]
 
     def stylize_image(self, content_img, style_img, original_shape, intensity=1.0, enhance_details=False):
+        """
+        Apply style transfer to the content image.
+        
+        Args:
+            content_img (tf.Tensor): Content image tensor
+            style_img (tf.Tensor): Style image tensor
+            original_shape (tuple): Original image dimensions
+            intensity (float): Strength of style transfer
+            enhance_details (bool): Whether to enhance image details
+        
+        Returns:
+            numpy array: Stylized image
+        """
         try:
             if enhance_details:
                 content_img = tf.image.adjust_contrast(content_img, 1.5)
@@ -123,6 +180,9 @@ class TurboTalkStyleTransfer:
             return None
 
     def run(self):
+        """
+        Run the Streamlit application interface.
+        """
         st.set_page_config(
             page_title="TurboTalk Style Transfer",
             page_icon="🎨",
