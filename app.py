@@ -52,10 +52,15 @@ class TurboTalkStyleTransfer:
             # Construct the path where the image should be
             search_folder = f"crawler_img/downloads/{query.replace(' ', '_')}"
             
+            # Debug: Check if the folder exists
+            st.write(f"Searching folder: {search_folder}")
+            
             # Ensure the folder exists and fetch the image
             if os.path.exists(search_folder):
+                st.write(f"Found folder: {search_folder}")
                 image_path = os.path.join(search_folder, '000001.jpg')
                 if os.path.exists(image_path):
+                    st.write(f"Found image: {image_path}")
                     img = Image.open(image_path).convert("RGB")
                     img = np.array(img)
                     img = img.astype(np.float32) / 255.0  # Normalize the image
