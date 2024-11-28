@@ -3,10 +3,9 @@ import streamlit as st
 import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
-import requests
-from PIL import Image
 import random
 import io
+from PIL import Image
 from icrawler.builtin import GoogleImageCrawler
 
 class TurboTalkStyleTransfer:
@@ -50,13 +49,23 @@ class TurboTalkStyleTransfer:
             google_crawler = GoogleImageCrawler(storage={'root_dir': 'crawler_img'})
             google_crawler.crawl(keyword=query, max_num=num_results)
 
-            # Get the first image from the crawl folder
-            image_path = f"crawler_img/downloads/{query.replace(' ', '_')}/000001.jpg"
-            img = Image.open(image_path).convert("RGB")
-            img = np.array(img)
-            img = img.astype(np.float32) / 255.0  # Normalize the image
-            return img[tf.newaxis, :]  # Add batch dimension
-
+            # Construct the path where the image should be
+            search_folder = f"crawler_img/downloads/{query.replace(' ', '_')}"
+            
+            # Ensure the folder exists and fetch the image
+            if os.path.exists(search_folder):
+                image_path = os.path.join(search_folder, '000001.jpg')
+                if os.path.exists(image_path):
+                    img = Image.open(image_path).convert("RGB")
+                    img = np.array(img)
+                    img = img.astype(np.float32) / 255.0  # Normalize the image
+                    return img[tf.newaxis, :]  # Add batch dimension
+                else:
+                    st.error(f"Image not found at {image_path}. Check if the image download was successful.")
+                    return None
+            else:
+                st.error(f"Directory not found for query: {query}. Ensure images were downloaded correctly.")
+                return None
         except Exception as e:
             st.error(f"Error fetching image: {e}")
             return None
