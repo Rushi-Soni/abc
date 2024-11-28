@@ -16,7 +16,7 @@ class TurboTalkStyleTransfer:
         self._initialize_model()
 
     def _configure_environment(self):
-        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
         tf.get_logger().setLevel('ERROR')
         
         gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -28,6 +28,7 @@ class TurboTalkStyleTransfer:
                 st.error(f"GPU Configuration Error: {e}")
 
     def _load_style_resources(self):
+        # You can expand this by adding more style images
         self.style_images = {
             "Mona Lisa": "images/Mona_Lisa.jpeg",
             "Mosaic": "images/mosaic.jpg",
@@ -44,10 +45,9 @@ class TurboTalkStyleTransfer:
             st.warning("Please check your internet connection or model availability.")
 
     def fetch_image_from_google(self, prompt, limit=5):
-        # Use GoogleImageScraper to get a list of image URLs based on the prompt
         try:
             st.write(f"Searching for: {prompt}")
-            image_data = GoogleImageScraper.urls(prompt, limit=limit, arguments={})  # You can add arguments like {'safe': 'active'}
+            image_data = GoogleImageScraper.urls(prompt, limit=limit, arguments={})
             
             if 'images' in image_data and image_data['images']:
                 image_url = image_data['images'][0]['url']
@@ -82,34 +82,6 @@ class TurboTalkStyleTransfer:
         selected_style = random.choices(style_list, weights=style_chances, k=1)[0]
         return self.style_images[selected_style]
 
-    def load_image(self, img_path_or_url):
-        try:
-            if isinstance(img_path_or_url, str) and img_path_or_url.startswith('http'):
-                response = requests.get(img_path_or_url)
-                if response.status_code != 200:
-                    st.error("Failed to load image from URL. Please check the link.")
-                    return None, None
-                img_array = np.asarray(bytearray(response.content), dtype=np.uint8)
-                img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-            else:
-                if isinstance(img_path_or_url, str):
-                    img = cv2.imread(img_path_or_url)
-                else:
-                    img_array = np.frombuffer(img_path_or_url.read(), np.uint8)
-                    img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-            
-            if img is None:
-                st.error("Failed to load image. Please check the file path or URL.")
-                return None, None
-            
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            original_shape = img.shape[:2]
-            img = img.astype(np.float32) / 255.0
-            return img[tf.newaxis, :], original_shape
-        except Exception as e:
-            st.error(f"Image Processing Error: {e}")
-            return None, None
-
     def stylize_image(self, content_img, style_img, original_shape, intensity=1.0, enhance_details=False):
         try:
             if enhance_details:
@@ -132,7 +104,6 @@ class TurboTalkStyleTransfer:
             final_img = tf.image.convert_image_dtype(final_img, tf.uint8)
             
             return final_img.numpy()
-            
         except Exception as e:
             st.error(f"Style Transfer Error: {e}")
             return None
@@ -144,10 +115,10 @@ class TurboTalkStyleTransfer:
             layout="wide"
         )
         
-        st.markdown(""" 
-        <div style='text-align: center; padding: 20px;'> 
-            <h1 style='font-size: 4rem; color: white;'>🎨 TurboTalk Style Transfer</h1> 
-            <p style='color: rgba(255,255,255,0.8); font-size: 1.5rem;'>Transform Images Into Masterpieces</p> 
+        st.markdown("""
+        <div style='text-align: center; padding: 20px;'>
+            <h1 style='font-size: 4rem; color: white;'>🎨 TurboTalk Style Transfer</h1>
+            <p style='color: rgba(255,255,255,0.8); font-size: 1.5rem;'>Transform Images Into Masterpieces</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -182,7 +153,6 @@ class TurboTalkStyleTransfer:
                             with col1:
                                 st.image(content_img[0], caption="Fetched Image", use_column_width=True)
                             
-
                             with col2:
                                 processed_img = np.squeeze(stylized_img)
                                 st.image(processed_img, caption="Stylized Image", use_column_width=True)
