@@ -46,8 +46,9 @@ class TurboTalkStyleTransfer:
     def fetch_image_from_google(self, prompt, limit=5):
         # Use GoogleImageScraper to get a list of image URLs based on the prompt
         try:
-            # Fetch image URLs
-            image_data = GoogleImageScraper.urls(prompt, limit=limit, arguments={})
+            st.write(f"Searching for: {prompt}")
+            image_data = GoogleImageScraper.urls(prompt, limit=limit, arguments={})  # You can add arguments like {'safe': 'active'}
+            
             if 'images' in image_data and image_data['images']:
                 image_url = image_data['images'][0]['url']
                 st.write(f"Fetched image URL: {image_url}")
@@ -60,7 +61,7 @@ class TurboTalkStyleTransfer:
                 img = img.astype(np.float32) / 255.0
                 return img[tf.newaxis, :]
             else:
-                st.error("No valid image found from the Google Image search.")
+                st.error("No valid image found from the Google Image search. Try refining your prompt.")
                 return None
         except Exception as e:
             st.error(f"Error fetching image: {e}")
