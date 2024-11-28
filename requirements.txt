@@ -7,3 +7,4 @@ matplotlib
 Pillow
 serpapi
 bs4
+googlesearch-python
