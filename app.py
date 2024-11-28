@@ -7,13 +7,17 @@ import requests
 from PIL import Image
 import random
 import io
-from icrawler.builtin import GoogleImageCrawler
+from googleapiclient.discovery import build
 
 class TurboTalkStyleTransfer:
     def __init__(self):
         self._configure_environment()
         self._load_style_resources()
         self._initialize_model()
+
+        # Set up your Google Custom Search API credentials
+        self.api_key = "YOUR_GOOGLE_API_KEY"
+        self.cse_id = "YOUR_CUSTOM_SEARCH_ENGINE_ID"
 
     def _configure_environment(self):
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
@@ -44,27 +48,26 @@ class TurboTalkStyleTransfer:
             self.model = None
             st.warning("Please check your internet connection or model availability.")
 
-    def fetch_image_from_google(self, keyword, max_num=1):
+    def fetch_image_from_google(self, query, num_results=1):
         try:
-            # Use icrawler to get the image URL
-            google_crawler = GoogleImageCrawler(storage={'root_dir': 'crawler_img'})
-            google_crawler.crawl(keyword=keyword, max_num=max_num)
+            # Build the Google Custom Search API client
+            service = build("customsearch", "v1", developerKey=self.api_key)
+            res = service.cse().list(q=query, cx=self.cse_id, searchType="image", num=num_results).execute()
 
-            # Check for downloaded images
-            search_dir = os.path.join('crawler_img', 'downloads')
-            image_paths = [os.path.join(search_dir, file) for file in os.listdir(search_dir) if file.endswith('.jpg')]
+            if 'items' in res:
+                image_url = res['items'][0]['link']  # Get the URL of the first image
+                st.write(f"Image URL: {image_url}")
 
-            if not image_paths:
-                st.error("No .jpg images found. Please try again.")
+                # Download the image
+                img_data = requests.get(image_url).content
+                img = Image.open(io.BytesIO(img_data))
+                img = img.convert("RGB")  # Convert to RGB if needed
+                img = np.array(img)
+                img = img.astype(np.float32) / 255.0  # Normalize the image
+                return img[tf.newaxis, :]  # Add batch dimension
+            else:
+                st.error("No image found. Try another query.")
                 return None
-
-            # Select the first image from the list of downloaded images
-            image_path = image_paths[0]
-            img = Image.open(image_path)
-            img = img.convert("RGB")
-            img = np.array(img)
-            img = img.astype(np.float32) / 255.0
-            return img[tf.newaxis, :]  # Add batch dimension
         except Exception as e:
             st.error(f"Error fetching image: {e}")
             return None
