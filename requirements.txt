@@ -9,3 +9,4 @@ serpapi
 bs4
 googlesearch-python
 GoogleImageScraper
+icrawler
