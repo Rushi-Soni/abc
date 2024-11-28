@@ -49,20 +49,29 @@ class TurboTalkStyleTransfer:
             google_crawler = GoogleImageCrawler(storage={'root_dir': 'crawler_img'})
             google_crawler.crawl(keyword=keyword, max_num=max_num)
             
-            # Dynamically find the path to the downloaded image
-            image_path = os.path.join('crawler_img', 'downloads', keyword, '000001.jpg')
-            if os.path.exists(image_path):
-                st.write(f"Image successfully fetched from Google with keyword '{keyword}': {image_path}")
-                
-                # Open the image
-                img = Image.open(image_path)
-                img = img.convert("RGB")  # Ensure it's in RGB format
-                img = np.array(img)
-                img = img.astype(np.float32) / 255.0
-                return img[tf.newaxis, :]  # Add batch dimension
-            else:
-                st.error(f"No image found at path {image_path}. Please try again.")
+            # Find the path to the downloaded image
+            search_dir = os.path.join('crawler_img', 'downloads')
+            if not os.path.exists(search_dir):
+                st.error("Crawler download folder does not exist. Check the path and try again.")
                 return None
+            
+            # Search for the first .jpg file in the directory
+            image_paths = [os.path.join(search_dir, file) for file in os.listdir(search_dir) if file.endswith('.jpg')]
+            
+            if not image_paths:
+                st.error(f"No .jpg images found in {search_dir}. Please check the download process.")
+                return None
+            
+            # Log the found image path
+            image_path = image_paths[0]  # Take the first image
+            st.write(f"Image found at: {image_path}")
+            
+            # Open the image
+            img = Image.open(image_path)
+            img = img.convert("RGB")  # Ensure it's in RGB format
+            img = np.array(img)
+            img = img.astype(np.float32) / 255.0
+            return img[tf.newaxis, :]  # Add batch dimension
         except Exception as e:
             st.error(f"Error fetching image: {e}")
             return None
