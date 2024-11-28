@@ -49,10 +49,10 @@ class TurboTalkStyleTransfer:
             google_crawler = GoogleImageCrawler(storage={'root_dir': 'crawler_img'})
             google_crawler.crawl(keyword=keyword, max_num=max_num)
             
-            # Fetch the path to the downloaded image
+            # Dynamically find the path to the downloaded image
             image_path = os.path.join('crawler_img', 'downloads', keyword, '000001.jpg')
             if os.path.exists(image_path):
-                st.write(f"Fetched image from Google with keyword '{keyword}': {image_path}")
+                st.write(f"Image successfully fetched from Google with keyword '{keyword}': {image_path}")
                 
                 # Open the image
                 img = Image.open(image_path)
@@ -61,7 +61,7 @@ class TurboTalkStyleTransfer:
                 img = img.astype(np.float32) / 255.0
                 return img[tf.newaxis, :]  # Add batch dimension
             else:
-                st.error("No image found. Please try again.")
+                st.error(f"No image found at path {image_path}. Please try again.")
                 return None
         except Exception as e:
             st.error(f"Error fetching image: {e}")
