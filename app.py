@@ -7,6 +7,8 @@ import cv2
 import requests
 import io
 from PIL import Image
+from bs4 import BeautifulSoup
+import random
 
 class TurboTalkStyleTransfer:
     def __init__(self):
@@ -27,37 +29,11 @@ class TurboTalkStyleTransfer:
                 st.error(f"GPU Configuration Error: {e}")
 
     def _load_style_resources(self):
-        self.style_categories = {
-            "Classic Art": [
-                "Starry Night", "The Scream", "Mona Lisa Interpretation", 
-                "Composition VII", "La Muse"
-            ],
-            "Abstract Styles": [
-                "Abstract Wave", "Abstract Flow", "Abstract Spiral", 
-                "Mosaic", "Udnie"
-            ],
-            "Artistic Techniques": [
-                "Watercolor Dream", "Oil Painting Essence", 
-                "Feathers", "Wave", "Candy"
-            ]
-        }
-        
         self.style_images = {
-            "Starry Night": "images/starry_night.jpg",
-            "The Scream": "images/the_scream.jpg",
-            "Mona Lisa Interpretation": "images/Mona_Lisa.jpeg",
-            "Composition VII": "images/composition_vii.jpg",
-            "La Muse": "images/la_muse.jpg",
-            "Abstract Wave": "images/abstract_wave.png",
-            "Abstract Flow": "images/abstract_flow.jpeg",
-            "Abstract Spiral": "images/abstract_spiral.png",
+            "Mona Lisa": "images/Mona_Lisa.jpeg",
             "Mosaic": "images/mosaic.jpg",
-            "Udnie": "images/udnie.jpg",
-            "Watercolor Dream": "images/watercolors.png",
-            "Oil Painting Essence": "images/oil_paints.jpg",
-            "Feathers": "images/feathers.jpg",
-            "Wave": "images/wave.jpg",
-            "Candy": "images/candy.jpg"
+            "The Scream": "images/the_scream.jpg",
+            "Udnie": "images/udnie.jpg"
         }
 
     def _initialize_model(self):
@@ -67,6 +43,45 @@ class TurboTalkStyleTransfer:
             st.error(f"Model Loading Failed: {model_err}")
             self.model = None
             st.warning("Please check your internet connection or model availability.")
+
+    def fetch_image_from_google(self, prompt):
+        # Search Google Images using BeautifulSoup and Requests
+        search_url = f"https://www.google.com/search?hl=en&tbm=isch&q={prompt}"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
+        
+        try:
+            response = requests.get(search_url, headers=headers)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Find the image URLs in the page
+            img_tags = soup.find_all('img')
+            img_url = img_tags[1]['src']  # Skip the first image tag (Google logo)
+            
+            # Fetch the image
+            img_data = requests.get(img_url).content
+            img = Image.open(io.BytesIO(img_data))
+            img = img.convert("RGB")  # Convert to RGB
+            img = np.array(img)
+            img = img.astype(np.float32) / 255.0
+            return img[tf.newaxis, :]
+        except Exception as e:
+            st.error(f"Error fetching image: {e}")
+            return None
+
+    def random_style_image(self):
+        # Define chances for each style
+        style_weights = {
+            "Mona Lisa": 3,
+            "Mosaic": 2,
+            "The Scream": 1,
+            "Udnie": 4
+        }
+        style_list = list(style_weights.keys())
+        style_chances = list(style_weights.values())
+        
+        # Randomly select a style based on weighted chances
+        selected_style = random.choices(style_list, weights=style_chances, k=1)[0]
+        return self.style_images[selected_style]
 
     def load_image(self, img_path_or_url):
         try:
@@ -123,43 +138,6 @@ class TurboTalkStyleTransfer:
             st.error(f"Style Transfer Error: {e}")
             return None
 
-    def add_advanced_styling(self):
-        st.markdown("""
-        <style>
-        .stApp {
-            background: linear-gradient(-45deg, 
-                #ee7752, #e73c7e, #23a6d5, #23d5ab);
-            background-size: 400% 400%;
-            animation: gradient-bg 15s ease infinite;
-        }
-        @keyframes gradient-bg {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        h1, h2, h3 {
-            font-family: 'Montserrat', sans-serif;
-            color: white;
-            text-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-        .css-1aumxhk {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(15px);
-            border-radius: 15px;
-        }
-        .stButton>button {
-            background-color: #4a4a4a !important;
-            color: white !important;
-            border-radius: 30px !important;
-            transition: all 0.3s ease;
-        }
-        .stButton>button:hover {
-            transform: scale(1.05);
-            background-color: #6a4a4a !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
     def run(self):
         st.set_page_config(
             page_title="TurboTalk Style Transfer", 
@@ -167,81 +145,60 @@ class TurboTalkStyleTransfer:
             layout="wide"
         )
         
-        self.add_advanced_styling()
-        
         st.markdown("""
         <div style='text-align: center; padding: 20px;'>
-            <h1 style='font-size: 4rem; color: white;'>
-                🎨 TurboTalk Style Transfer
-            </h1>
-            <p style='color: rgba(255,255,255,0.8); font-size: 1.5rem;'>
-                Transform Images Into Masterpieces
-            </p>
+            <h1 style='font-size: 4rem; color: white;'>🎨 TurboTalk Style Transfer</h1>
+            <p style='color: rgba(255,255,255,0.8); font-size: 1.5rem;'>Transform Images Into Masterpieces</p>
         </div>
         """, unsafe_allow_html=True)
 
+        prompt = st.text_input("Enter a prompt for Google Images", "")
+
         with st.sidebar:
             st.header("🎨 Style Transfer Settings")
-            
-            style_category = st.selectbox(
-                "Style Category", 
-                list(self.style_categories.keys())
-            )
-            style_selection = st.selectbox(
-                "Choose Artistic Style", 
-                self.style_categories[style_category]
-            )
-            
-            style_intensity = st.slider(
-                "Style Transfer Intensity", 
-                min_value=0.0, 
-                max_value=1.0, 
-                value=0.8, 
-                step=0.1
-            )
-            
+            style_intensity = st.slider("Style Transfer Intensity", min_value=0.0, max_value=1.0, value=0.8, step=0.1)
             st.subheader("Advanced Options")
             enhance_details = st.checkbox("Enhance Image Details")
 
-        content_image = st.file_uploader(
-            "Upload Your Content Image", 
-            type=["jpg", "jpeg", "png"],
-            help="Select an image to apply artistic style"
-        )
+        content_image = st.file_uploader("Upload Your Content Image", type=["jpg", "jpeg", "png"])
 
-        if content_image and st.button("Generate Artistic Masterpiece"):
+        if prompt and content_image and st.button("Generate Artistic Masterpiece"):
             with st.spinner("Creating your masterpiece..."):
                 content_img, original_shape = self.load_image(content_image)
-                style_img, _ = self.load_image(self.style_images[style_selection])
+                fetched_image = self.fetch_image_from_google(prompt)
                 
-                if content_img is not None and style_img is not None:
-                    stylized_img = self.stylize_image(
-                        content_img, 
-                        style_img,
-                        original_shape,
-                        intensity=style_intensity,
-                        enhance_details=enhance_details
-                    )
+                if content_img is not None and fetched_image is not None:
+                    style_img_path = self.random_style_image()
+                    style_img, _ = self.load_image(style_img_path)
                     
-                    if stylized_img is not None:
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            st.image(content_image, caption="Original Image", use_column_width=True)
-                        
-                        with col2:
-                            processed_img = np.squeeze(stylized_img)
-                            st.image(processed_img, caption=f"Stylized with {style_selection}", use_column_width=True)
-                        
-                        buffered = io.BytesIO()
-                        Image.fromarray(processed_img).save(buffered, format="PNG")
-                        
-                        st.download_button(
-                            label="💾 Download Masterpiece",
-                            data=buffered.getvalue(),
-                            file_name="turbotalk_masterpiece.png",
-                            mime="image/png"
+                    if style_img is not None:
+                        stylized_img = self.stylize_image(
+                            fetched_image, 
+                            style_img,
+                            original_shape,
+                            intensity=style_intensity,
+                            enhance_details=enhance_details
                         )
+                        
+                        if stylized_img is not None:
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.image(content_image, caption="Original Image", use_column_width=True)
+                            
+                            with col2:
+                                processed_img = np.squeeze(stylized_img)
+                                st.image(processed_img, caption="Stylized Image", use_column_width=True)
+                            
+                            buffered = io.BytesIO()
+                            Image.fromarray(processed_img).save(buffered, format="PNG")
+                            
+                            st.download_button(
+                                label="💾 Download Masterpiece",
+                                data=buffered.getvalue(),
+                                file_name="turbotalk_masterpiece.png",
+                                mime="image/png"
+                            )
 
 def main():
     app = TurboTalkStyleTransfer()
