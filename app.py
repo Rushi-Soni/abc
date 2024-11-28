@@ -49,9 +49,9 @@ class TurboTalkStyleTransfer:
         try:
             image_url = None
             # Fetch search results
-            search_results = search(query, num_results=5)  # Get top 5 results
+            search_results = search(query, num_results=10)  # Increase the number of results
             for url in search_results:
-                if url.endswith(('jpg', 'jpeg', 'png')):  # Make sure it's an image link
+                if url.lower().endswith(('jpg', 'jpeg', 'png', 'webp', 'gif')):  # More formats
                     image_url = url
                     break
             
@@ -65,7 +65,7 @@ class TurboTalkStyleTransfer:
                 img = img.astype(np.float32) / 255.0
                 return img[tf.newaxis, :]
             else:
-                st.error("No valid image found.")
+                st.error("No valid image found from the search results. Try refining your prompt.")
                 return None
         except Exception as e:
             st.error(f"Error fetching image: {e}")
@@ -186,6 +186,7 @@ class TurboTalkStyleTransfer:
                             with col1:
                                 st.image(content_img[0], caption="Fetched Image", use_column_width=True)
                             
+
                             with col2:
                                 processed_img = np.squeeze(stylized_img)
                                 st.image(processed_img, caption="Stylized Image", use_column_width=True)
