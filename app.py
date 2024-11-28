@@ -55,6 +55,7 @@ class TurboTalkStyleTransfer:
             # Find the image URLs in the page
             img_tags = soup.find_all('img')
             img_url = img_tags[1]['src']  # Skip the first image tag (Google logo)
+            st.write(f"Fetched image URL: {img_url}")
             
             # Fetch the image
             img_data = requests.get(img_url).content
